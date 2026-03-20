@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mango — A fast, native MongoDB GUI</title>
+  <meta name="description" content="Mango is a native MongoDB client built with Perry. No Electron, no JVM — just a fast, lightweight binary that talks directly to your database.">
+  <meta property="og:title" content="Mango — A fast, native MongoDB GUI">
+  <meta property="og:description" content="No Electron, no JVM — just a fast, lightweight binary that talks directly to your database.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.mangoquery.com">
+  <meta property="og:image" content="https://www.mangoquery.com/icon-512.png">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #FF9F1C;
+      --yellow: #FFBF69;
+      --red: #E8572A;
+      --green: #2EC4B6;
+      --charcoal: #2B2D42;
+      --cream: #FFF8F0;
+      --slate: #8D99AE;
+      --surface: #FFFFFF;
+      --border: #E8E9ED;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--charcoal);
+      background: var(--cream);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* --- NAV --- */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(255, 248, 240, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    nav .logo { height: 36px; }
+
+    nav .links { display: flex; gap: 2rem; align-items: center; }
+    nav .links a {
+      text-decoration: none;
+      color: var(--charcoal);
+      font-size: 0.95rem;
+      font-weight: 500;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    nav .links a:hover { opacity: 1; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .btn-primary { background: var(--charcoal); color: #fff; }
+    .btn-secondary { background: var(--surface); color: var(--charcoal); border: 1px solid var(--border); }
+
+    /* --- HERO --- */
+    .hero {
+      padding: 10rem 2rem 6rem;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .hero-icon {
+      width: 120px;
+      height: 120px;
+      border-radius: 28px;
+      box-shadow: 0 8px 32px rgba(232, 87, 42, 0.2);
+      margin-bottom: 2rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 1.2rem;
+    }
+
+    .hero h1 .highlight {
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--slate);
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+    }
+
+    .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+    .hero-stats {
+      display: flex;
+      gap: 3rem;
+      justify-content: center;
+      margin-top: 4rem;
+      flex-wrap: wrap;
+    }
+
+    .hero-stats .stat {
+      text-align: center;
+    }
+
+    .hero-stats .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-stats .stat-label {
+      font-size: 0.85rem;
+      color: var(--slate);
+      font-weight: 500;
+    }
+
+    /* --- FEATURES --- */
+    .features {
+      padding: 6rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .features h2 {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .features .subtitle {
+      text-align: center;
+      color: var(--slate);
+      font-size: 1.1rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+
+    .feature-card .icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+      color: var(--slate);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .icon-orange { background: rgba(255, 159, 28, 0.1); }
+    .icon-green { background: rgba(46, 196, 182, 0.1); }
+    .icon-red { background: rgba(232, 87, 42, 0.1); }
+    .icon-charcoal { background: rgba(43, 45, 66, 0.08); }
+
+    /* --- BUILT WITH --- */
+    .built-with {
+      padding: 5rem 2rem;
+      text-align: center;
+      background: var(--charcoal);
+      color: #E8E9ED;
+    }
+
+    .built-with h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.75rem;
+    }
+
+    .built-with .subtitle {
+      color: var(--slate);
+      font-size: 1.1rem;
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .tech-pills {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .tech-pill {
+      padding: 0.5rem 1.2rem;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border: 1px solid #4A4D6A;
+      color: #E8E9ED;
+    }
+
+    .tech-pill.accent {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    /* --- PLATFORMS --- */
+    .platforms {
+      padding: 5rem 2rem;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .platforms h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .platforms .subtitle {
+      color: var(--slate);
+      font-size: 1.1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .platform-grid {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .platform-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .platform-item .platform-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .platform-item span {
+      font-size: 0.85rem;
+      color: var(--slate);
+      font-weight: 500;
+    }
+
+    /* --- CTA --- */
+    .cta {
+      padding: 6rem 2rem;
+      text-align: center;
+    }
+
+    .cta-box {
+      max-width: 640px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      border-radius: 20px;
+      padding: 3.5rem 2.5rem;
+      color: #fff;
+    }
+
+    .cta-box h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .cta-box p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+    }
+
+    .cta-box .btn-primary {
+      background: #fff;
+      color: var(--charcoal);
+    }
+
+    /* --- FOOTER --- */
+    footer {
+      padding: 2.5rem 2rem;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+
+    footer p {
+      color: var(--slate);
+      font-size: 0.85rem;
+    }
+
+    footer a { color: var(--orange); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 640px) {
+      .hero { padding: 8rem 1.5rem 4rem; }
+      .hero-stats { gap: 2rem; }
+      .features, .platforms, .cta { padding: 4rem 1.5rem; }
+      nav .links a.hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <img src="/logo.svg" alt="Mango" class="logo">
+    <div class="links">
+      <a href="#features" class="hide-mobile">Features</a>
+      <a href="#platforms" class="hide-mobile">Platforms</a>
+      <a href="https://github.com/MangoQuery/app" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/MangoQuery/app/releases" class="btn btn-primary" target="_blank" rel="noopener">Download</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <img src="/icon-512.png" alt="Mango app icon" class="hero-icon">
+    <h1>MongoDB, <span class="highlight">finally fast.</span></h1>
+    <p>A native MongoDB GUI that starts instantly and stays out of your way. Built with Perry, compiled to a single binary.</p>
+    <div class="hero-buttons">
+      <a href="/downloads/Mango.exe" class="btn btn-primary" download>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Windows
+      </a>
+      <a href="https://github.com/MangoQuery/app" class="btn btn-secondary" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Source Code
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-value">~7 MB</div>
+        <div class="stat-label">Binary size</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">&lt;100 MB</div>
+        <div class="stat-label">RAM usage</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">&lt;1s</div>
+        <div class="stat-label">Cold start</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">0</div>
+        <div class="stat-label">Electron</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <h2>Everything you need</h2>
+    <p class="subtitle">Browse, query, and manage your MongoDB databases with a clean native interface.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon icon-orange">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF9F1C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h3>Connection Management</h3>
+        <p>Save and organize connection profiles. Supports host/port, connection strings, SCRAM-SHA-256, and TLS.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon icon-green">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3>Query Builder</h3>
+        <p>Write filters, sort, and project with instant results. Query any collection with the full power of MongoDB's query language.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon icon-red">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E8572A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <h3>Document Editing</h3>
+        <p>View, edit, insert, delete, and duplicate documents inline. Changes are saved directly to MongoDB.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon icon-charcoal">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2B2D42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <h3>Collection Browser</h3>
+        <p>Navigate databases and collections with stats at a glance. See document counts, storage size, and index info.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon icon-orange">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF9F1C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <h3>Index Viewer</h3>
+        <p>List all indexes with their keys, uniqueness constraints, and sizes. Understand your data access patterns.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon icon-green">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m16.95-4.95L15.12 9.88m-6.24 6.24L6.05 18.95m12.9 0l-2.83-2.83m-6.24-6.24L6.05 7.05"/></svg>
+        </div>
+        <h3>Dark &amp; Light Mode</h3>
+        <p>Follows your system appearance automatically. A warm cream palette in light mode, deep charcoal in dark.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="built-with">
+    <h2>Built different</h2>
+    <p class="subtitle">Mango compiles TypeScript to native machine code using Perry. No web views, no garbage collection, no runtime bloat.</p>
+    <div class="tech-pills">
+      <span class="tech-pill accent">Perry</span>
+      <span class="tech-pill">TypeScript</span>
+      <span class="tech-pill">Cranelift</span>
+      <span class="tech-pill">SWC</span>
+      <span class="tech-pill">Rust MongoDB Driver</span>
+      <span class="tech-pill">Native UI</span>
+      <span class="tech-pill">ARM64 / x86_64</span>
+    </div>
+  </section>
+
+  <section class="platforms" id="platforms">
+    <h2>Runs everywhere</h2>
+    <p class="subtitle">One codebase, native performance on every platform.</p>
+    <div class="platform-grid">
+      <div class="platform-item">
+        <div class="platform-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--charcoal)"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83"/><path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg>
+        </div>
+        <span>macOS</span>
+      </div>
+      <div class="platform-item">
+        <div class="platform-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--charcoal)"><path d="M17.6 11.4c0-1-.3-1.9-.9-2.7L18.3 7c.2-.2.2-.5 0-.7s-.5-.2-.7 0l-1.5 1.6c-.9-.6-1.9-.9-3-.9h-.2c-1.1 0-2.1.3-3 .9L8.4 6.3c-.2-.2-.5-.2-.7 0s-.2.5 0 .7l1.5 1.7c-.6.8-.9 1.7-.9 2.7H17.6zM11 10H10V9h1V10zM14 10h-1V9h1V10z"/><path d="M5.3 11H6v5.5c0 .6.4 1 1 1h1v2c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-2h2v2c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-2h1c.6 0 1-.4 1-1V11h.7c.8 0 1.5-.7 1.5-1.5S18.5 8 17.7 8H17.6 6.4 5.3C4.5 8 3.8 8.7 3.8 9.5S4.5 11 5.3 11z"/></svg>
+        </div>
+        <span>Android</span>
+      </div>
+      <div class="platform-item">
+        <div class="platform-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--charcoal)"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" fill="none" stroke="var(--charcoal)" stroke-width="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke="var(--charcoal)" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <span>iOS</span>
+      </div>
+      <div class="platform-item">
+        <div class="platform-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal)" stroke-width="2"><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <span>Linux</span>
+      </div>
+      <div class="platform-item">
+        <div class="platform-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--charcoal)"><path d="M3 5.5L1.5 20h4.5l.5-3h3L10 20h4l.5-3h3l.5 3h4.5L21.5 5.5 12 2 3 5.5zM6.5 14l.5-3h2l-.5 3H6.5zM10.5 14l.5-3h2l-.5 3h-2zM14.5 14l.5-3h2l-.5 3h-2z"/></svg>
+        </div>
+        <span>Windows</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="cta-box">
+      <h2>Try Mango today</h2>
+      <p>Open source, free forever. Download the binary or build from source.</p>
+      <a href="https://github.com/MangoQuery/app" class="btn btn-primary" target="_blank" rel="noopener">
+        View on GitHub
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2026 <a href="https://skelpo.com">Skelpo GmbH</a>. Mango is open source under the <a href="https://github.com/MangoQuery/app/blob/main/LICENSE">MIT License</a>.</p>
+  </footer>
+
+</body>
+</html>
