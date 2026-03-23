@@ -302,6 +302,8 @@
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
+      text-decoration: none;
+      color: inherit;
     }
 
     .platform-item .platform-icon {
@@ -369,12 +371,72 @@
     footer a { color: var(--orange); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
+    /* --- COOKIE BANNER --- */
+    .cookie-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--charcoal);
+      color: #fff;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      z-index: 1000;
+      font-size: 0.9rem;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
+    }
+
+    .cookie-banner p {
+      margin: 0;
+      max-width: 600px;
+    }
+
+    .cookie-banner a {
+      color: var(--yellow);
+      text-decoration: underline;
+    }
+
+    .cookie-buttons {
+      display: flex;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .cookie-buttons button {
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .cookie-buttons button:hover { opacity: 0.85; }
+
+    .cookie-btn-accept {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    .cookie-btn-decline {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3) !important;
+    }
+
     /* --- RESPONSIVE --- */
     @media (max-width: 640px) {
       .hero { padding: 8rem 1.5rem 4rem; }
       .hero-stats { gap: 2rem; }
       .features, .platforms, .cta { padding: 4rem 1.5rem; }
       nav .links a.hide-mobile { display: none; }
+      .cookie-banner { flex-direction: column; text-align: center; padding: 1.25rem 1.5rem; }
     }
   </style>
 </head>
@@ -398,6 +460,10 @@
       <a href="/downloads/Mango.exe" class="btn btn-primary" download>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download for Windows
+      </a>
+      <a href="https://apps.apple.com/us/app/mango-mongodb-browser/id6760540159" class="btn btn-secondary" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83"/><path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg>
+        Download for iOS
       </a>
       <a href="https://github.com/MangoQuery/app" class="btn btn-secondary" target="_blank" rel="noopener">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -503,12 +569,12 @@
         </div>
         <span>Android</span>
       </div>
-      <div class="platform-item">
+      <a class="platform-item" href="https://apps.apple.com/us/app/mango-mongodb-browser/id6760540159" target="_blank" rel="noopener">
         <div class="platform-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--charcoal)"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" fill="none" stroke="var(--charcoal)" stroke-width="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke="var(--charcoal)" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
         <span>iOS</span>
-      </div>
+      </a>
       <div class="platform-item">
         <div class="platform-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--charcoal)" stroke-width="2"><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="10"/></svg>
@@ -537,6 +603,49 @@
   <footer>
     <p>&copy; 2026 <a href="https://skelpo.com">Skelpo GmbH</a>. Mango is open source under the <a href="https://github.com/MangoQuery/app/blob/main/LICENSE">MIT License</a>.</p>
   </footer>
+
+  <div class="cookie-banner" id="cookieBanner" style="display:none">
+    <p>We use cookies to analyze site traffic and improve your experience. By accepting, you agree to our use of analytics cookies.</p>
+    <div class="cookie-buttons">
+      <button class="cookie-btn-accept" onclick="acceptCookies()">Accept</button>
+      <button class="cookie-btn-decline" onclick="declineCookies()">Decline</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var consent = localStorage.getItem('cookie_consent');
+      if (consent === null) {
+        document.getElementById('cookieBanner').style.display = '';
+      } else if (consent === 'accepted') {
+        loadAnalytics();
+      }
+    })();
+
+    function acceptCookies() {
+      localStorage.setItem('cookie_consent', 'accepted');
+      document.getElementById('cookieBanner').style.display = 'none';
+      loadAnalytics();
+    }
+
+    function declineCookies() {
+      localStorage.setItem('cookie_consent', 'declined');
+      document.getElementById('cookieBanner').style.display = 'none';
+    }
+
+    function loadAnalytics() {
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-451P0FFGTR';
+      document.head.appendChild(s);
+
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', 'G-451P0FFGTR');
+    }
+  </script>
 
 </body>
 </html>
