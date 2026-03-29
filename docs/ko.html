@@ -1,0 +1,797 @@
+<!-- last-synced: 2026-03-29 (English source) -->
+      <h1>Mango Developer Documentation</h1>
+      <p class="lead">Everything you need to understand, extend, and contribute to Mango — a native MongoDB GUI compiled from TypeScript to native code with Perry.</p>
+
+      <!-- ========== OVERVIEW ========== -->
+      <h2 id="overview">Overview</h2>
+      <p>Mango is a cross-platform MongoDB GUI that compiles TypeScript directly to native machine code. There is no Electron, no JVM, and no web view at runtime. The result is a ~7 MB binary that starts in under a second and uses less than 100 MB of RAM.</p>
+
+      <p>The key technologies behind Mango:</p>
+      <ul>
+        <li><strong>Perry</strong> — a TypeScript-to-native compiler that uses SWC for parsing and Cranelift for code generation</li>
+        <li><strong>TypeScript</strong> — the entire codebase is standard TypeScript (ES2022 target)</li>
+        <li><strong>MongoDB Driver</strong> — the official <code>mongodb</code> npm package (v7.1.0) for database connectivity</li>
+        <li><strong>SQLite</strong> — local storage for connection profiles and user preferences via <code>better-sqlite3</code></li>
+        <li><strong>Native UI</strong> — Perry compiles to AppKit (macOS), UIKit (iOS), Android Views, GTK4 (Linux), Win32 (Windows)</li>
+      </ul>
+
+      <!-- ========== ARCHITECTURE ========== -->
+      <h2 id="architecture">Architecture</h2>
+      <p>Mango follows a simple layered architecture with three distinct concerns:</p>
+
+      <pre><code><span class="token-cm">┌─────────────────────────────────────────────┐</span>
+<span class="token-cm">│</span>  <span class="token-type">UI Layer</span>         <span class="token-cm">src/app.ts</span>                <span class="token-cm">│</span>
+<span class="token-cm">│</span>  Perry widgets, screens, navigation, state   <span class="token-cm">│</span>
+<span class="token-cm">├─────────────────────────────────────────────┤</span>
+<span class="token-cm">│</span>  <span class="token-type">Theme Layer</span>      <span class="token-cm">src/theme/</span>                <span class="token-cm">│</span>
+<span class="token-cm">│</span>  Colors (light/dark), typography, spacing    <span class="token-cm">│</span>
+<span class="token-cm">├─────────────────────────────────────────────┤</span>
+<span class="token-cm">│</span>  <span class="token-type">Data Layer</span>       <span class="token-cm">src/data/</span>                 <span class="token-cm">│</span>
+<span class="token-cm">│</span>  ConnectionStore, MongoClient, Preferences   <span class="token-cm">│</span>
+<span class="token-cm">├─────────────────────────────────────────────┤</span>
+<span class="token-cm">│</span>  <span class="token-type">Perry Runtime</span>    <span class="token-cm">perry/ui, perry/system</span>    <span class="token-cm">│</span>
+<span class="token-cm">│</span>  Native widgets, keychain, platform APIs     <span class="token-cm">│</span>
+<span class="token-cm">└─────────────────────────────────────────────┘</span></code></pre>
+
+      <p>On native platforms (macOS, iOS, Android, Linux, Windows), the app talks directly to MongoDB via the driver. On the web, a Fastify server proxies MongoDB operations over WebSocket:</p>
+
+      <pre><code><span class="token-cm">// Native platforms</span>
+<span class="token-type">App.ts</span> → <span class="token-fn">MongoClient</span> → mongodb driver → TCP → MongoDB
+
+<span class="token-cm">// Web platform</span>
+<span class="token-type">Browser</span> → WebSocket → <span class="token-fn">Fastify</span> (serve.ts) → MongoClient → MongoDB</code></pre>
+
+      <!-- ========== PROJECT STRUCTURE ========== -->
+      <h2 id="project-structure">Project Structure</h2>
+
+      <div class="file-tree">
+        <span class="dir">src/</span><br>
+        &nbsp;&nbsp;<span class="file">app.ts</span> <span class="desc">— Main UI: all screens, navigation, state (1770 lines)</span><br>
+        &nbsp;&nbsp;<span class="file">serve.ts</span> <span class="desc">— Fastify web server + WebSocket proxy</span><br>
+        &nbsp;&nbsp;<span class="dir">data/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">connection-store.ts</span> <span class="desc">— SQLite CRUD for connection profiles</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">mongo-client.ts</span> <span class="desc">— MongoDB driver wrapper</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">web-mongo-client.ts</span> <span class="desc">— WebSocket client for web mode</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">preferences.ts</span> <span class="desc">— User preferences with SQLite + in-memory cache</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">database.ts</span> <span class="desc">— SQLite singleton factory</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">telemetry.ts</span> <span class="desc">— Optional analytics events</span><br>
+        &nbsp;&nbsp;<span class="dir">theme/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">colors.ts</span> <span class="desc">— Light &amp; dark theme color definitions</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">typography.ts</span> <span class="desc">— Platform-specific font families &amp; sizes</span><br>
+        <span class="dir">tests/</span><br>
+        &nbsp;&nbsp;<span class="file">preload.ts</span> <span class="desc">— Bun test mocks for Perry and MongoDB</span><br>
+        &nbsp;&nbsp;<span class="file">connection-store.test.ts</span><br>
+        &nbsp;&nbsp;<span class="file">mongo-client.test.ts</span><br>
+        &nbsp;&nbsp;<span class="file">preferences.test.ts</span><br>
+        <span class="file">perry.toml</span> <span class="desc">— Perry build config: targets, icons, entitlements</span><br>
+        <span class="file">package.json</span> <span class="desc">— Dependencies and scripts</span><br>
+        <span class="file">tsconfig.json</span> <span class="desc">— TypeScript config (ES2022, strict)</span><br>
+        <span class="file">bunfig.toml</span> <span class="desc">— Bun test runner config</span>
+      </div>
+
+      <!-- ========== BUILDING ========== -->
+      <h2 id="building">Building &amp; Running</h2>
+
+      <h3>Prerequisites</h3>
+      <ul>
+        <li><a href="https://perryjs.com">Perry</a> compiler installed</li>
+        <li>Node.js / npm for dependency management</li>
+        <li><a href="https://bun.sh">Bun</a> for running tests</li>
+      </ul>
+
+      <h3>Install dependencies</h3>
+      <pre><code>npm install</code></pre>
+
+      <h3>Development (compile &amp; run with hot reload)</h3>
+      <pre><code>perry compile src/app.ts -o Mango</code></pre>
+
+      <h3>Production build</h3>
+      <pre><code><span class="token-cm"># Build for the current platform</span>
+perry build
+
+<span class="token-cm"># Build for a specific target</span>
+perry build --target macos
+perry build --target ios
+perry build --target android
+perry build --target linux
+perry build --target windows
+perry build --target web</code></pre>
+
+      <h3>Type checking</h3>
+      <pre><code>perry check</code></pre>
+
+      <h3>Run tests</h3>
+      <pre><code><span class="token-cm"># All tests</span>
+bun test
+
+<span class="token-cm"># Single test file</span>
+bun test tests/connection-store.test.ts</code></pre>
+
+      <h3>Web mode</h3>
+      <p>For the web target, Mango runs as a Fastify HTTP server that serves static assets and proxies MongoDB operations over WebSocket:</p>
+      <pre><code><span class="token-cm"># Start the web server</span>
+perry compile src/serve.ts -o MangoWeb
+./MangoWeb --host 0.0.0.0 --port 3000
+
+<span class="token-cm"># Transient mode (demo, no persistence)</span>
+./MangoWeb --transient</code></pre>
+
+      <!-- ========== PERRY OVERVIEW ========== -->
+      <h2 id="perry-overview">What is Perry?</h2>
+      <p>Perry is a TypeScript-to-native compiler. It parses TypeScript using <strong>SWC</strong> (Speedy Web Compiler), then generates native machine code via <strong>Cranelift</strong>. The result is a self-contained binary for each platform — no runtime, no interpreter, no bundled V8.</p>
+
+      <p>Perry handles:</p>
+      <ul>
+        <li><strong>Compilation:</strong> TypeScript → AST (SWC) → Machine code (Cranelift)</li>
+        <li><strong>Platform abstraction:</strong> A single widget API that maps to native controls per platform</li>
+        <li><strong>Dead code elimination:</strong> Platform-specific branches are stripped at compile time</li>
+        <li><strong>System APIs:</strong> Keychain access, dark mode detection, device idiom checks</li>
+      </ul>
+
+      <div class="callout">
+        <strong>Key insight:</strong> Perry is not a JavaScript runtime. Your TypeScript becomes native code — there is no event loop, no garbage collector, and no JIT compilation at runtime.
+      </div>
+
+      <h3>perry.toml configuration</h3>
+      <p>The <code>perry.toml</code> file at the project root controls all build settings:</p>
+      <pre><code><span class="token-cm">[project]</span>
+<span class="token-kw">name</span> = <span class="token-str">"Mango"</span>
+<span class="token-kw">entry</span> = <span class="token-str">"src/app.ts"</span>
+<span class="token-kw">build_number</span> = <span class="token-num">57</span>
+
+<span class="token-cm">[targets]</span>
+<span class="token-kw">platforms</span> = [<span class="token-str">"macos"</span>, <span class="token-str">"ios"</span>, <span class="token-str">"android"</span>, <span class="token-str">"linux"</span>, <span class="token-str">"windows"</span>, <span class="token-str">"web"</span>]
+
+<span class="token-cm">[macos]</span>
+<span class="token-kw">distribution</span> = [<span class="token-str">"appstore"</span>, <span class="token-str">"direct"</span>]
+<span class="token-kw">entitlements</span> = [<span class="token-str">"sandbox"</span>, <span class="token-str">"network-client"</span>]
+
+<span class="token-cm">[build]</span>
+<span class="token-kw">opt_level</span> = <span class="token-num">2</span></code></pre>
+
+      <!-- ========== PERRY UI ========== -->
+      <h2 id="perry-ui">UI Widgets</h2>
+      <p>Perry provides an imperative widget API. There is no JSX, no virtual DOM, and no declarative binding. You create widgets, configure them with function calls, and add them to layout stacks.</p>
+
+      <h3>Available widgets</h3>
+      <table>
+        <thead>
+          <tr><th>Widget</th><th>Import</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>VStack</code></td><td><code>perry/ui</code></td><td>Vertical stack layout</td></tr>
+          <tr><td><code>HStack</code></td><td><code>perry/ui</code></td><td>Horizontal stack layout</td></tr>
+          <tr><td><code>Text</code></td><td><code>perry/ui</code></td><td>Label / text display</td></tr>
+          <tr><td><code>TextField</code></td><td><code>perry/ui</code></td><td>Single-line text input</td></tr>
+          <tr><td><code>TextArea</code></td><td><code>perry/ui</code></td><td>Multi-line text input</td></tr>
+          <tr><td><code>Button</code></td><td><code>perry/ui</code></td><td>Clickable button</td></tr>
+          <tr><td><code>ScrollView</code></td><td><code>perry/ui</code></td><td>Scrollable container</td></tr>
+          <tr><td><code>ImageFile</code></td><td><code>perry/ui</code></td><td>Image display</td></tr>
+          <tr><td><code>Divider</code></td><td><code>perry/ui</code></td><td>Visual separator</td></tr>
+          <tr><td><code>Spacer</code></td><td><code>perry/ui</code></td><td>Flexible empty space</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Creating widgets</h3>
+      <pre><code><span class="token-kw">import</span> { VStack, HStack, Text, Button, TextField } <span class="token-kw">from</span> <span class="token-str">"perry/ui"</span>;
+
+<span class="token-cm">// Create a vertical layout</span>
+<span class="token-kw">const</span> container = <span class="token-kw">new</span> <span class="token-type">VStack</span>();
+
+<span class="token-cm">// Add a text label</span>
+<span class="token-kw">const</span> title = <span class="token-kw">new</span> <span class="token-type">Text</span>(<span class="token-str">"Hello, Mango"</span>);
+container.<span class="token-fn">addArrangedSubview</span>(title);
+
+<span class="token-cm">// Add a button with a click handler</span>
+<span class="token-kw">const</span> btn = <span class="token-kw">new</span> <span class="token-type">Button</span>(<span class="token-str">"Connect"</span>, () => {
+  <span class="token-fn">handleConnect</span>();
+});
+container.<span class="token-fn">addArrangedSubview</span>(btn);
+
+<span class="token-cm">// Add a text field</span>
+<span class="token-kw">const</span> input = <span class="token-kw">new</span> <span class="token-type">TextField</span>(<span class="token-str">"Enter hostname..."</span>);
+container.<span class="token-fn">addArrangedSubview</span>(input);</code></pre>
+
+      <!-- ========== PERRY STYLING ========== -->
+      <h2 id="perry-styling">Styling &amp; Layout</h2>
+      <p>All styling is done through imperative function calls — there is no CSS. Colors are RGBA values (0.0–1.0 range), and layout is controlled through stack distribution and alignment.</p>
+
+      <h3>Styling functions</h3>
+      <pre><code><span class="token-kw">import</span> {
+  <span class="token-fn">textSetFontSize</span>,
+  <span class="token-fn">widgetSetBackgroundColor</span>,
+  <span class="token-fn">setCornerRadius</span>,
+  <span class="token-fn">setPadding</span>,
+  <span class="token-fn">stackSetDistribution</span>,
+  <span class="token-fn">stackSetAlignment</span>,
+  <span class="token-fn">setSpacing</span>
+} <span class="token-kw">from</span> <span class="token-str">"perry/ui"</span>;
+
+<span class="token-cm">// Font sizing</span>
+<span class="token-fn">textSetFontSize</span>(title, <span class="token-num">24</span>);
+
+<span class="token-cm">// Background color (RGBA, 0.0–1.0)</span>
+<span class="token-fn">widgetSetBackgroundColor</span>(card, <span class="token-num">1.0</span>, <span class="token-num">1.0</span>, <span class="token-num">1.0</span>, <span class="token-num">1.0</span>);
+
+<span class="token-cm">// Rounded corners</span>
+<span class="token-fn">setCornerRadius</span>(card, <span class="token-num">12</span>);
+
+<span class="token-cm">// Padding (top, right, bottom, left)</span>
+<span class="token-fn">setPadding</span>(card, <span class="token-num">16</span>, <span class="token-num">20</span>, <span class="token-num">16</span>, <span class="token-num">20</span>);
+
+<span class="token-cm">// Stack layout</span>
+<span class="token-fn">stackSetDistribution</span>(container, <span class="token-num">0</span>); <span class="token-cm">// 0 = fill</span>
+<span class="token-fn">stackSetAlignment</span>(container, <span class="token-num">0</span>);    <span class="token-cm">// 0 = leading</span>
+<span class="token-fn">setSpacing</span>(container, <span class="token-num">8</span>);</code></pre>
+
+      <div class="callout">
+        <strong>No CSS, no DOM.</strong> If you're coming from a web background, think of Perry's styling as SwiftUI-style modifiers applied imperatively. Every visual property is set through a direct function call.
+      </div>
+
+      <!-- ========== PERRY PLATFORM ========== -->
+      <h2 id="perry-platform">Platform Detection</h2>
+      <p>Perry exposes a compile-time constant <code>__platform__</code> that resolves to an integer. Since this is a compile-time constant, Cranelift eliminates dead branches — native builds never include web-only code and vice versa.</p>
+
+      <pre><code><span class="token-cm">// __platform__ values</span>
+<span class="token-num">0</span> = macOS
+<span class="token-num">1</span> = iOS
+<span class="token-num">2</span> = Android
+<span class="token-num">3</span> = Windows
+<span class="token-num">4</span> = Linux
+<span class="token-num">5</span> = Web
+
+<span class="token-cm">// Usage in code</span>
+<span class="token-kw">declare const</span> __platform__: <span class="token-type">number</span>;
+
+<span class="token-kw">if</span> (__platform__ === <span class="token-num">5</span>) {
+  <span class="token-cm">// Web-only code — stripped from native builds</span>
+  <span class="token-kw">import</span> { WebMongoClient } <span class="token-kw">from</span> <span class="token-str">"./data/web-mongo-client"</span>;
+} <span class="token-kw">else</span> {
+  <span class="token-cm">// Native-only code — stripped from web builds</span>
+  <span class="token-kw">import</span> { MongoClient } <span class="token-kw">from</span> <span class="token-str">"./data/mongo-client"</span>;
+}</code></pre>
+
+      <p>The <code>perry-styling</code> module also provides named constants:</p>
+      <pre><code><span class="token-kw">import</span> { isMacOS, isIOS, isAndroid, isWindows, isLinux, isWeb } <span class="token-kw">from</span> <span class="token-str">"perry-styling"</span>;</code></pre>
+
+      <!-- ========== PERRY SYSTEM ========== -->
+      <h2 id="perry-system">System APIs</h2>
+      <p>Perry provides platform-native system APIs through the <code>perry/system</code> module:</p>
+
+      <table>
+        <thead>
+          <tr><th>API</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>isDarkMode()</code></td><td>Returns <code>true</code> if the OS is in dark mode</td></tr>
+          <tr><td><code>keychainSave(key, value)</code></td><td>Store a secret in the platform keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)</td></tr>
+          <tr><td><code>keychainGet(key)</code></td><td>Retrieve a secret from the keychain</td></tr>
+          <tr><td><code>getDeviceIdiom()</code></td><td>Returns the device type (phone, tablet, desktop)</td></tr>
+        </tbody>
+      </table>
+
+      <pre><code><span class="token-kw">import</span> { isDarkMode, keychainSave, keychainGet } <span class="token-kw">from</span> <span class="token-str">"perry/system"</span>;
+
+<span class="token-cm">// Determine theme</span>
+<span class="token-kw">const</span> dark = <span class="token-fn">isDarkMode</span>();
+<span class="token-kw">const</span> bg = dark ? colors.dark.background : colors.light.background;
+
+<span class="token-cm">// Store password securely</span>
+<span class="token-kw">await</span> <span class="token-fn">keychainSave</span>(<span class="token-str">"mango-conn-abc123"</span>, password);
+
+<span class="token-cm">// Retrieve password</span>
+<span class="token-kw">const</span> pw = <span class="token-kw">await</span> <span class="token-fn">keychainGet</span>(<span class="token-str">"mango-conn-abc123"</span>);</code></pre>
+
+      <!-- ========== APP.TS ========== -->
+      <h2 id="app-ts">app.ts — The Main File</h2>
+      <p><code>src/app.ts</code> is the single-file entry point for the entire UI. At ~1770 lines, it contains all screens, navigation logic, widget construction, and event handling. This is intentional — Perry apps favor flat, imperative code over deep component hierarchies.</p>
+
+      <h3>High-level structure</h3>
+      <pre><code><span class="token-cm">// 1. Imports</span>
+<span class="token-kw">import</span> { VStack, HStack, ... } <span class="token-kw">from</span> <span class="token-str">"perry/ui"</span>;
+<span class="token-kw">import</span> { ConnectionStore } <span class="token-kw">from</span> <span class="token-str">"./data/connection-store"</span>;
+<span class="token-kw">import</span> { MongoClient } <span class="token-kw">from</span> <span class="token-str">"./data/mongo-client"</span>;
+
+<span class="token-cm">// 2. Global state variables</span>
+<span class="token-kw">let</span> connectionIds: <span class="token-type">string</span>[] = [];
+<span class="token-kw">let</span> connectionNames: <span class="token-type">string</span>[] = [];
+<span class="token-kw">let</span> currentScreen = <span class="token-num">0</span>;
+
+<span class="token-cm">// 3. Screen builders</span>
+<span class="token-kw">function</span> <span class="token-fn">buildConnectionList</span>() { ... }
+<span class="token-kw">function</span> <span class="token-fn">buildBrowser</span>() { ... }
+<span class="token-kw">function</span> <span class="token-fn">buildEditor</span>() { ... }
+
+<span class="token-cm">// 4. Event handlers</span>
+<span class="token-kw">function</span> <span class="token-fn">handleConnect</span>() { ... }
+<span class="token-kw">function</span> <span class="token-fn">runQuery</span>() { ... }
+
+<span class="token-cm">// 5. App initialization</span>
+<span class="token-fn">buildConnectionList</span>();</code></pre>
+
+      <!-- ========== SCREENS ========== -->
+      <h2 id="screens">Screens &amp; Navigation</h2>
+      <p>Mango uses indexed screen-based navigation. Each screen is a distinct view built by a dedicated function:</p>
+
+      <table>
+        <thead>
+          <tr><th>Screen</th><th>Function</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Connection List</td><td><code>buildConnectionList()</code></td><td>Manage saved connections — create, edit, delete, connect</td></tr>
+          <tr><td>Database Browser</td><td><code>buildBrowser()</code></td><td>Tree navigation of databases and collections, query bar, results</td></tr>
+          <tr><td>Document Editor</td><td><code>buildEditor()</code></td><td>View/edit document JSON with syntax highlighting</td></tr>
+          <tr><td>Edit Modal</td><td><code>showEditView()</code></td><td>Full-screen modal for creating, editing, or duplicating documents</td></tr>
+        </tbody>
+      </table>
+
+      <p>Navigation between screens is done by toggling visibility of top-level containers and updating the <code>currentScreen</code> index.</p>
+
+      <!-- ========== STATE ========== -->
+      <h2 id="state-management">State Management</h2>
+      <p>Mango uses module-level variables for all state. There is no Redux, no signals, and no observable patterns — just plain TypeScript variables that are read and mutated directly.</p>
+
+      <pre><code><span class="token-cm">// Connection list state</span>
+<span class="token-kw">let</span> connectionIds: <span class="token-type">string</span>[] = [];
+<span class="token-kw">let</span> connectionNames: <span class="token-type">string</span>[] = [];
+<span class="token-kw">let</span> connectionUris: <span class="token-type">string</span>[] = [];
+
+<span class="token-cm">// Form state for connection editing</span>
+<span class="token-kw">let</span> formName = <span class="token-str">""</span>;
+<span class="token-kw">let</span> formHost = <span class="token-str">"localhost"</span>;
+<span class="token-kw">let</span> formPort = <span class="token-str">"27017"</span>;
+
+<span class="token-cm">// Query state</span>
+<span class="token-kw">let</span> currentFilter = <span class="token-str">"{}"</span>;
+<span class="token-kw">let</span> currentSort = <span class="token-str">"{}"</span>;
+<span class="token-kw">let</span> currentProjection = <span class="token-str">"{}"</span>;</code></pre>
+
+      <p>When state changes, you manually call widget update functions to refresh the UI:</p>
+      <pre><code><span class="token-cm">// Update a text widget after state changes</span>
+title.<span class="token-fn">setText</span>(<span class="token-str">`Documents (</span>${results.length}<span class="token-str">)`</span>);
+
+<span class="token-cm">// Rebuild a list by removing and re-adding children</span>
+listContainer.<span class="token-fn">removeAllArrangedSubviews</span>();
+<span class="token-kw">for</span> (<span class="token-kw">const</span> doc <span class="token-kw">of</span> results) {
+  listContainer.<span class="token-fn">addArrangedSubview</span>(<span class="token-fn">buildDocRow</span>(doc));
+}</code></pre>
+
+      <div class="callout">
+        <strong>Why no reactive framework?</strong> Perry compiles to native code, so the overhead of a virtual DOM or reactive system would add complexity without benefit. Direct widget manipulation is predictable and fast.
+      </div>
+
+      <!-- ========== THEMING ========== -->
+      <h2 id="theming">Theme System</h2>
+      <p>Mango's theme is defined in <code>src/theme/colors.ts</code> as two color palettes (light and dark) and in <code>src/theme/typography.ts</code> for platform-specific fonts.</p>
+
+      <h3>Color palette</h3>
+      <p>Colors use an RGBA interface with values from 0.0 to 1.0:</p>
+      <pre><code><span class="token-kw">interface</span> <span class="token-type">RGBA</span> {
+  r: <span class="token-type">number</span>; g: <span class="token-type">number</span>; b: <span class="token-type">number</span>; a: <span class="token-type">number</span>;
+}
+
+<span class="token-kw">const</span> light = {
+  background: { r: <span class="token-num">1.0</span>, g: <span class="token-num">0.973</span>, b: <span class="token-num">0.941</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #FFF8F0 Cream</span>
+  surface:    { r: <span class="token-num">1.0</span>, g: <span class="token-num">1.0</span>,   b: <span class="token-num">1.0</span>,   a: <span class="token-num">1.0</span> },  <span class="token-cm">// White</span>
+  text:       { r: <span class="token-num">0.169</span>, g: <span class="token-num">0.176</span>, b: <span class="token-num">0.259</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #2B2D42 Charcoal</span>
+  accent:     { r: <span class="token-num">1.0</span>, g: <span class="token-num">0.624</span>, b: <span class="token-num">0.110</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #FF9F1C Mango Orange</span>
+};
+
+<span class="token-kw">const</span> dark = {
+  background: { r: <span class="token-num">0.169</span>, g: <span class="token-num">0.176</span>, b: <span class="token-num">0.259</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #2B2D42 Charcoal</span>
+  surface:    { r: <span class="token-num">0.22</span>,  g: <span class="token-num">0.23</span>,  b: <span class="token-num">0.31</span>,  a: <span class="token-num">1.0</span> },  <span class="token-cm">// Dark Gray</span>
+  text:       { r: <span class="token-num">0.91</span>,  g: <span class="token-num">0.91</span>,  b: <span class="token-num">0.93</span>,  a: <span class="token-num">1.0</span> },  <span class="token-cm">// Light Gray</span>
+  accent:     { r: <span class="token-num">1.0</span>, g: <span class="token-num">0.624</span>, b: <span class="token-num">0.110</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// Mango Orange (same)</span>
+};</code></pre>
+
+      <h3>Typography</h3>
+      <p>Fonts are selected per platform at compile time:</p>
+      <table>
+        <thead>
+          <tr><th>Platform</th><th>UI Font</th><th>Mono Font</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>macOS / iOS</td><td>.AppleSystemUIFont</td><td>SF Mono</td></tr>
+          <tr><td>Windows</td><td>Segoe UI</td><td>Cascadia Code</td></tr>
+          <tr><td>Android</td><td>Roboto</td><td>Roboto Mono</td></tr>
+          <tr><td>Linux</td><td>Ubuntu</td><td>JetBrains Mono</td></tr>
+          <tr><td>Web</td><td>system-ui</td><td>ui-monospace</td></tr>
+        </tbody>
+      </table>
+
+      <p>Font sizes are defined as named constants:</p>
+      <pre><code><span class="token-kw">const</span> FontSize = {
+  XS:    <span class="token-num">11</span>,
+  Small: <span class="token-num">13</span>,
+  Body:  <span class="token-num">15</span>,
+  Large: <span class="token-num">18</span>,
+  XL:    <span class="token-num">32</span>,
+};</code></pre>
+
+      <!-- ========== CONNECTION STORE ========== -->
+      <h2 id="connection-store">ConnectionStore</h2>
+      <p><code>src/data/connection-store.ts</code> manages saved connection profiles in SQLite. It handles creation, retrieval, updates, and deletion of connection configs, with secure password storage through the platform keychain.</p>
+
+      <h3>Connection model</h3>
+      <p>Each connection profile stores:</p>
+      <ul>
+        <li><strong>Name</strong> — user-friendly display label</li>
+        <li><strong>Mode</strong> — <code>host</code> (host + port) or <code>uri</code> (connection string)</li>
+        <li><strong>Host &amp; Port</strong> — for host mode (defaults: <code>localhost:27017</code>)</li>
+        <li><strong>URI</strong> — full MongoDB connection string</li>
+        <li><strong>Auth mechanism</strong> — SCRAM-SHA-256, SCRAM-SHA-1, or X.509</li>
+        <li><strong>TLS/SSL</strong> — with optional custom CA certificate</li>
+        <li><strong>Default database</strong> — optional database to select on connect</li>
+      </ul>
+
+      <h3>Password storage</h3>
+      <p>Passwords are <strong>never</strong> stored in SQLite. On native platforms, they go into the OS keychain. On web, <code>localStorage</code> is used as a fallback.</p>
+      <pre><code><span class="token-cm">// Native: save to platform keychain</span>
+<span class="token-kw">await</span> <span class="token-fn">keychainSave</span>(<span class="token-str">`mango-</span>${connectionId}<span class="token-str">`</span>, password);
+
+<span class="token-cm">// Web fallback: localStorage</span>
+localStorage.<span class="token-fn">setItem</span>(<span class="token-str">`mango-pw-</span>${connectionId}<span class="token-str">`</span>, password);</code></pre>
+
+      <h3>SQLite schema</h3>
+      <pre><code><span class="token-kw">CREATE TABLE</span> connections (
+  id          <span class="token-type">TEXT PRIMARY KEY</span>,
+  name        <span class="token-type">TEXT NOT NULL</span>,
+  mode        <span class="token-type">TEXT DEFAULT</span> <span class="token-str">'host'</span>,
+  host        <span class="token-type">TEXT DEFAULT</span> <span class="token-str">'localhost'</span>,
+  port        <span class="token-type">INTEGER DEFAULT</span> <span class="token-num">27017</span>,
+  uri         <span class="token-type">TEXT</span>,
+  auth        <span class="token-type">TEXT</span>,
+  tls         <span class="token-type">INTEGER DEFAULT</span> <span class="token-num">0</span>,
+  ca_cert     <span class="token-type">TEXT</span>,
+  default_db  <span class="token-type">TEXT</span>,
+  created_at  <span class="token-type">TEXT</span>,
+  updated_at  <span class="token-type">TEXT</span>
+);
+
+<span class="token-kw">CREATE TABLE</span> app_state (
+  key   <span class="token-type">TEXT PRIMARY KEY</span>,
+  value <span class="token-type">TEXT</span>
+);</code></pre>
+
+      <h3>Core API</h3>
+      <pre><code><span class="token-kw">import</span> { ConnectionStore } <span class="token-kw">from</span> <span class="token-str">"./data/connection-store"</span>;
+
+<span class="token-kw">const</span> store = <span class="token-kw">new</span> <span class="token-type">ConnectionStore</span>();
+
+<span class="token-cm">// Create</span>
+<span class="token-kw">const</span> id = store.<span class="token-fn">createConnection</span>({ name, host, port, ... });
+
+<span class="token-cm">// Read</span>
+<span class="token-kw">const</span> all = store.<span class="token-fn">getAllConnections</span>();
+<span class="token-kw">const</span> one = store.<span class="token-fn">getConnection</span>(id);
+
+<span class="token-cm">// Update</span>
+store.<span class="token-fn">updateConnection</span>(id, { name: <span class="token-str">"Production"</span> });
+
+<span class="token-cm">// Delete</span>
+store.<span class="token-fn">deleteConnection</span>(id);
+
+<span class="token-cm">// Build a connection URI from a saved profile</span>
+<span class="token-kw">const</span> uri = store.<span class="token-fn">buildConnectionUri</span>(id);</code></pre>
+
+      <!-- ========== MONGO CLIENT ========== -->
+      <h2 id="mongo-client">MongoClient</h2>
+      <p><code>src/data/mongo-client.ts</code> is a thin wrapper around the official MongoDB Node.js driver. It provides the core operations that Mango needs and tracks connection state and latency.</p>
+
+      <h3>Core methods</h3>
+      <table>
+        <thead>
+          <tr><th>Method</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>connect(uri)</code></td><td>Establish connection, validate with <code>ping</code></td></tr>
+          <tr><td><code>disconnect()</code></td><td>Close the connection</td></tr>
+          <tr><td><code>listDatabases()</code></td><td>List all databases with sizes</td></tr>
+          <tr><td><code>listCollections(db)</code></td><td>List all collections in a database</td></tr>
+          <tr><td><code>query(db, coll, opts)</code></td><td>Find documents with filter/sort/projection/limit/skip</td></tr>
+          <tr><td><code>insertDocument(db, coll, doc)</code></td><td>Insert a new document</td></tr>
+          <tr><td><code>updateDocument(db, coll, filter, update)</code></td><td>Update a document with <code>$set</code></td></tr>
+          <tr><td><code>deleteDocument(db, coll, filter)</code></td><td>Delete a single document by filter</td></tr>
+          <tr><td><code>duplicateDocument(db, coll, doc)</code></td><td>Clone a document (strips <code>_id</code>)</td></tr>
+          <tr><td><code>getCollectionStats(db, coll)</code></td><td>Collection metadata (count, size, avg doc size)</td></tr>
+          <tr><td><code>listIndexes(db, coll)</code></td><td>Index list with keys and sizes</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Query options</h3>
+      <pre><code><span class="token-kw">interface</span> <span class="token-type">QueryOptions</span> {
+  filter?: <span class="token-type">object</span>;       <span class="token-cm">// MongoDB filter document, e.g. { status: "active" }</span>
+  sort?: <span class="token-type">object</span>;         <span class="token-cm">// Sort spec, e.g. { createdAt: -1 }</span>
+  projection?: <span class="token-type">object</span>;   <span class="token-cm">// Field projection, e.g. { name: 1, email: 1 }</span>
+  limit?: <span class="token-type">number</span>;        <span class="token-cm">// Max documents to return (default from preferences)</span>
+  skip?: <span class="token-type">number</span>;         <span class="token-cm">// Pagination offset</span>
+}</code></pre>
+
+      <h3>Usage</h3>
+      <pre><code><span class="token-kw">import</span> { MongoClient } <span class="token-kw">from</span> <span class="token-str">"./data/mongo-client"</span>;
+
+<span class="token-kw">const</span> client = <span class="token-kw">new</span> <span class="token-type">MongoClient</span>();
+
+<span class="token-cm">// Connect</span>
+<span class="token-kw">await</span> client.<span class="token-fn">connect</span>(<span class="token-str">"mongodb://localhost:27017"</span>);
+
+<span class="token-cm">// List databases</span>
+<span class="token-kw">const</span> dbs = <span class="token-kw">await</span> client.<span class="token-fn">listDatabases</span>();
+
+<span class="token-cm">// Query with filter and sort</span>
+<span class="token-kw">const</span> docs = <span class="token-kw">await</span> client.<span class="token-fn">query</span>(<span class="token-str">"mydb"</span>, <span class="token-str">"users"</span>, {
+  filter: { active: <span class="token-kw">true</span> },
+  sort: { createdAt: -<span class="token-num">1</span> },
+  limit: <span class="token-num">50</span>
+});
+
+<span class="token-cm">// Insert a document</span>
+<span class="token-kw">await</span> client.<span class="token-fn">insertDocument</span>(<span class="token-str">"mydb"</span>, <span class="token-str">"users"</span>, {
+  name: <span class="token-str">"Alice"</span>,
+  email: <span class="token-str">"alice@example.com"</span>
+});</code></pre>
+
+      <!-- ========== PREFERENCES ========== -->
+      <h2 id="preferences">PreferencesStore</h2>
+      <p><code>src/data/preferences.ts</code> persists user settings in SQLite with an in-memory cache for fast reads.</p>
+
+      <h3>Available preferences</h3>
+      <table>
+        <thead>
+          <tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>theme</code></td><td>string</td><td><code>"system"</code></td><td>Color theme: <code>"system"</code>, <code>"light"</code>, or <code>"dark"</code></td></tr>
+          <tr><td><code>pageSize</code></td><td>number</td><td><code>20</code></td><td>Documents per query page: 20, 50, 100, or 500</td></tr>
+          <tr><td><code>expandDocumentsByDefault</code></td><td>boolean</td><td><code>false</code></td><td>Auto-expand JSON documents in results</td></tr>
+          <tr><td><code>showCollectionStats</code></td><td>boolean</td><td><code>false</code></td><td>Show doc count &amp; size in sidebar</td></tr>
+          <tr><td><code>analyticsEnabled</code></td><td>boolean</td><td><code>true</code></td><td>Opt-in/out of anonymous telemetry</td></tr>
+          <tr><td><code>lastConnectionId</code></td><td>string?</td><td><code>null</code></td><td>Auto-select last-used connection on launch</td></tr>
+          <tr><td><code>sidebarWidth</code></td><td>number</td><td><code>250</code></td><td>Width of the database sidebar in pixels</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Usage</h3>
+      <pre><code><span class="token-kw">import</span> { PreferencesStore } <span class="token-kw">from</span> <span class="token-str">"./data/preferences"</span>;
+
+<span class="token-kw">const</span> prefs = <span class="token-kw">new</span> <span class="token-type">PreferencesStore</span>();
+
+<span class="token-cm">// Read (returns from in-memory cache)</span>
+<span class="token-kw">const</span> theme = prefs.<span class="token-fn">get</span>(<span class="token-str">"theme"</span>);       <span class="token-cm">// "system"</span>
+<span class="token-kw">const</span> pageSize = prefs.<span class="token-fn">get</span>(<span class="token-str">"pageSize"</span>); <span class="token-cm">// 20</span>
+
+<span class="token-cm">// Write (updates cache + SQLite)</span>
+prefs.<span class="token-fn">set</span>(<span class="token-str">"theme"</span>, <span class="token-str">"dark"</span>);
+prefs.<span class="token-fn">set</span>(<span class="token-str">"pageSize"</span>, <span class="token-num">100</span>);</code></pre>
+
+      <!-- ========== WEB CLIENT ========== -->
+      <h2 id="web-client">Web Mode &amp; WebSocket Proxy</h2>
+      <p>When compiled for the web target, Mango can't use the native MongoDB driver directly (browsers lack TCP socket access). Instead, a Fastify server (<code>src/serve.ts</code>) acts as a proxy:</p>
+
+      <h3>Server (serve.ts)</h3>
+      <pre><code><span class="token-cm">// serve.ts starts a Fastify HTTP server</span>
+<span class="token-cm">// Serves static assets (HTML, JS, CSS) over HTTP</span>
+<span class="token-cm">// Proxies MongoDB operations over WebSocket at /ws</span>
+
+<span class="token-cm">// Supported WebSocket messages:</span>
+{
+  action: <span class="token-str">"connect"</span>,        <span class="token-cm">// → MongoClient.connect(uri)</span>
+  action: <span class="token-str">"disconnect"</span>,     <span class="token-cm">// → MongoClient.disconnect()</span>
+  action: <span class="token-str">"listDatabases"</span>,   <span class="token-cm">// → MongoClient.listDatabases()</span>
+  action: <span class="token-str">"listCollections"</span>, <span class="token-cm">// → MongoClient.listCollections(db)</span>
+  action: <span class="token-str">"find"</span>,           <span class="token-cm">// → MongoClient.query(db, coll, opts)</span>
+  action: <span class="token-str">"insertOne"</span>,      <span class="token-cm">// → MongoClient.insertDocument(...)</span>
+  action: <span class="token-str">"updateOne"</span>,      <span class="token-cm">// → MongoClient.updateDocument(...)</span>
+  action: <span class="token-str">"deleteOne"</span>,      <span class="token-cm">// → MongoClient.deleteDocument(...)</span>
+}</code></pre>
+
+      <h3>Client (web-mongo-client.ts)</h3>
+      <p>The web-side client mirrors the <code>MongoClient</code> API but sends operations over WebSocket instead of TCP:</p>
+      <pre><code><span class="token-kw">import</span> { WebMongoClient } <span class="token-kw">from</span> <span class="token-str">"./data/web-mongo-client"</span>;
+
+<span class="token-cm">// Same API as MongoClient — the app code doesn't need to know</span>
+<span class="token-cm">// whether it's running natively or in a browser</span>
+<span class="token-kw">const</span> client = <span class="token-kw">new</span> <span class="token-type">WebMongoClient</span>();
+<span class="token-kw">await</span> client.<span class="token-fn">connect</span>(uri);
+<span class="token-kw">const</span> dbs = <span class="token-kw">await</span> client.<span class="token-fn">listDatabases</span>();</code></pre>
+
+      <h3>CLI options for serve.ts</h3>
+      <table>
+        <thead>
+          <tr><th>Flag</th><th>Default</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>--host</code></td><td><code>localhost</code></td><td>Bind address</td></tr>
+          <tr><td><code>--port</code></td><td><code>3000</code></td><td>Listen port</td></tr>
+          <tr><td><code>--transient</code></td><td><code>false</code></td><td>Demo mode — no data persistence</td></tr>
+          <tr><td><code>--html</code></td><td>(auto)</td><td>Path to static HTML assets</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ========== TELEMETRY ========== -->
+      <h2 id="telemetry">Telemetry</h2>
+      <p><code>src/data/telemetry.ts</code> provides optional, anonymous event tracking via the Chirp API. It respects the user's <code>analyticsEnabled</code> preference and is fully try-catch wrapped — a telemetry failure will never crash the app.</p>
+
+      <h3>Tracked events</h3>
+      <table>
+        <thead>
+          <tr><th>Event</th><th>When</th><th>Dimensions</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>app_launch</code></td><td>App starts</td><td>platform, version</td></tr>
+          <tr><td><code>connect</code></td><td>User connects to MongoDB</td><td>platform, version</td></tr>
+          <tr><td><code>query</code></td><td>User runs a query</td><td>platform, version</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout-green callout">
+        <strong>Privacy:</strong> Telemetry never sends database contents, connection URIs, credentials, or personally identifiable information. Users can opt out at any time in preferences.
+      </div>
+
+      <!-- ========== ADDING FEATURES ========== -->
+      <h2 id="adding-features">Adding Features</h2>
+      <p>Here's a walkthrough of adding a new feature to Mango — for example, an aggregation pipeline builder.</p>
+
+      <h3>Step 1: Add the data operation</h3>
+      <p>Add a new method to <code>src/data/mongo-client.ts</code>:</p>
+      <pre><code><span class="token-kw">async</span> <span class="token-fn">aggregate</span>(
+  dbName: <span class="token-type">string</span>,
+  collName: <span class="token-type">string</span>,
+  pipeline: <span class="token-type">object</span>[]
+): <span class="token-type">Promise</span>&lt;<span class="token-type">object</span>[]&gt; {
+  <span class="token-kw">const</span> db = <span class="token-kw">this</span>.client.db(dbName);
+  <span class="token-kw">const</span> coll = db.collection(collName);
+  <span class="token-kw">return await</span> coll.<span class="token-fn">aggregate</span>(pipeline).<span class="token-fn">toArray</span>();
+}</code></pre>
+
+      <h3>Step 2: Add the WebSocket action (for web mode)</h3>
+      <p>In <code>src/serve.ts</code>, add a handler for the new action:</p>
+      <pre><code><span class="token-kw">case</span> <span class="token-str">"aggregate"</span>:
+  <span class="token-kw">const</span> results = <span class="token-kw">await</span> client.<span class="token-fn">aggregate</span>(
+    msg.dbName, msg.collName, msg.pipeline
+  );
+  ws.<span class="token-fn">send</span>(<span class="token-type">JSON</span>.<span class="token-fn">stringify</span>({ action: <span class="token-str">"aggregate"</span>, results }));
+  <span class="token-kw">break</span>;</code></pre>
+
+      <p>Mirror this in <code>src/data/web-mongo-client.ts</code> so the web client can call the same API.</p>
+
+      <h3>Step 3: Build the UI</h3>
+      <p>In <code>src/app.ts</code>, create a new function for the aggregation screen:</p>
+      <pre><code><span class="token-kw">function</span> <span class="token-fn">buildAggregationView</span>() {
+  <span class="token-kw">const</span> container = <span class="token-kw">new</span> <span class="token-type">VStack</span>();
+  <span class="token-fn">setPadding</span>(container, <span class="token-num">16</span>, <span class="token-num">16</span>, <span class="token-num">16</span>, <span class="token-num">16</span>);
+
+  <span class="token-cm">// Pipeline stage editor</span>
+  <span class="token-kw">const</span> editor = <span class="token-kw">new</span> <span class="token-type">TextArea</span>(<span class="token-str">'[{ "$match": {} }]'</span>);
+  container.<span class="token-fn">addArrangedSubview</span>(editor);
+
+  <span class="token-cm">// Run button</span>
+  <span class="token-kw">const</span> runBtn = <span class="token-kw">new</span> <span class="token-type">Button</span>(<span class="token-str">"Run Pipeline"</span>, <span class="token-kw">async</span> () => {
+    <span class="token-kw">const</span> pipeline = <span class="token-type">JSON</span>.<span class="token-fn">parse</span>(editor.content);
+    <span class="token-kw">const</span> results = <span class="token-kw">await</span> client.<span class="token-fn">aggregate</span>(currentDb, currentColl, pipeline);
+    <span class="token-fn">displayResults</span>(results);
+  });
+  container.<span class="token-fn">addArrangedSubview</span>(runBtn);
+
+  <span class="token-kw">return</span> container;
+}</code></pre>
+
+      <h3>Step 4: Write tests</h3>
+      <p>Add a test in <code>tests/</code> following the existing patterns.</p>
+
+      <!-- ========== ADDING SCREENS ========== -->
+      <h2 id="adding-screens">Adding Screens</h2>
+      <p>To add a new screen to Mango:</p>
+
+      <ol>
+        <li><strong>Create the builder function</strong> — e.g., <code>buildSettingsScreen()</code> in <code>app.ts</code></li>
+        <li><strong>Assign a screen index</strong> — add a new constant for navigation</li>
+        <li><strong>Add navigation</strong> — add a button or menu item that sets <code>currentScreen</code> and shows the new container</li>
+        <li><strong>Wire up the back button</strong> — ensure the user can return to the previous screen</li>
+      </ol>
+
+      <pre><code><span class="token-cm">// Define a new screen index</span>
+<span class="token-kw">const</span> SCREEN_SETTINGS = <span class="token-num">3</span>;
+
+<span class="token-cm">// Builder function</span>
+<span class="token-kw">function</span> <span class="token-fn">buildSettingsScreen</span>() {
+  <span class="token-kw">const</span> root = <span class="token-kw">new</span> <span class="token-type">VStack</span>();
+
+  <span class="token-cm">// Back button</span>
+  <span class="token-kw">const</span> back = <span class="token-kw">new</span> <span class="token-type">Button</span>(<span class="token-str">"Back"</span>, () => {
+    <span class="token-fn">navigateTo</span>(SCREEN_BROWSER);
+  });
+  root.<span class="token-fn">addArrangedSubview</span>(back);
+
+  <span class="token-cm">// ... settings UI ...</span>
+
+  <span class="token-kw">return</span> root;
+}
+
+<span class="token-cm">// Navigate to it</span>
+<span class="token-kw">function</span> <span class="token-fn">navigateTo</span>(screen: <span class="token-type">number</span>) {
+  <span class="token-cm">// Hide current screen, show target screen</span>
+  currentScreen = screen;
+}</code></pre>
+
+      <!-- ========== NEW DATA OPS ========== -->
+      <h2 id="new-data-ops">New Database Operations</h2>
+      <p>To add a new MongoDB operation to Mango, you need to update three files:</p>
+
+      <table>
+        <thead>
+          <tr><th>File</th><th>What to add</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>src/data/mongo-client.ts</code></td><td>New method using the <code>mongodb</code> driver</td></tr>
+          <tr><td><code>src/data/web-mongo-client.ts</code></td><td>Matching method that sends via WebSocket</td></tr>
+          <tr><td><code>src/serve.ts</code></td><td>New WebSocket action handler in the switch block</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>Keep the API symmetric.</strong> The <code>MongoClient</code> and <code>WebMongoClient</code> must have identical method signatures so that <code>app.ts</code> can use either one depending on the platform, without conditional logic.
+      </div>
+
+      <!-- ========== CUSTOM THEMES ========== -->
+      <h2 id="custom-themes">Custom Themes</h2>
+      <p>To create a new color theme:</p>
+
+      <ol>
+        <li>Open <code>src/theme/colors.ts</code></li>
+        <li>Create a new <code>ThemeColors</code> object following the light/dark pattern</li>
+        <li>Add a new theme option in <code>PreferencesStore</code></li>
+        <li>Update the theme selection logic in <code>app.ts</code></li>
+      </ol>
+
+      <pre><code><span class="token-cm">// Example: adding a "solarized" theme to colors.ts</span>
+<span class="token-kw">export const</span> solarized: <span class="token-type">ThemeColors</span> = {
+  background: { r: <span class="token-num">0.0</span>, g: <span class="token-num">0.169</span>, b: <span class="token-num">0.212</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #002b36</span>
+  surface:    { r: <span class="token-num">0.027</span>, g: <span class="token-num">0.212</span>, b: <span class="token-num">0.259</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #073642</span>
+  text:       { r: <span class="token-num">0.514</span>, g: <span class="token-num">0.580</span>, b: <span class="token-num">0.588</span>, a: <span class="token-num">1.0</span> },  <span class="token-cm">// #839496</span>
+  accent:     { r: <span class="token-num">0.710</span>, g: <span class="token-num">0.537</span>, b: <span class="token-num">0.0</span>,   a: <span class="token-num">1.0</span> },  <span class="token-cm">// #b58900</span>
+  <span class="token-cm">// ... remaining color keys</span>
+};</code></pre>
+
+      <!-- ========== TESTING ========== -->
+      <h2 id="testing">Testing</h2>
+      <p>Mango uses <strong>Bun</strong> as its test runner with a preload script that mocks Perry and platform APIs.</p>
+
+      <h3>Test setup</h3>
+      <p><code>tests/preload.ts</code> sets up mocks before any test file runs:</p>
+      <ul>
+        <li><strong>Perry UI mocks</strong> — stub implementations for <code>VStack</code>, <code>Button</code>, <code>Text</code>, etc.</li>
+        <li><strong>Perry system mocks</strong> — fake <code>isDarkMode()</code>, <code>keychainSave()</code>, <code>keychainGet()</code></li>
+        <li><strong>SQLite mock</strong> — in-memory SQLite via Bun's <code>bun:sqlite</code> module</li>
+      </ul>
+
+      <h3>Writing a test</h3>
+      <pre><code><span class="token-kw">import</span> { describe, it, expect, beforeEach } <span class="token-kw">from</span> <span class="token-str">"bun:test"</span>;
+<span class="token-kw">import</span> { resetDatabase } <span class="token-kw">from</span> <span class="token-str">"./mocks/reset-database"</span>;
+<span class="token-kw">import</span> { ConnectionStore } <span class="token-kw">from</span> <span class="token-str">"../src/data/connection-store"</span>;
+
+<span class="token-fn">describe</span>(<span class="token-str">"ConnectionStore"</span>, () => {
+  <span class="token-kw">let</span> store: <span class="token-type">ConnectionStore</span>;
+
+  <span class="token-fn">beforeEach</span>(() => {
+    <span class="token-fn">resetDatabase</span>();
+    store = <span class="token-kw">new</span> <span class="token-type">ConnectionStore</span>();
+  });
+
+  <span class="token-fn">it</span>(<span class="token-str">"creates and retrieves a connection"</span>, () => {
+    <span class="token-kw">const</span> id = store.<span class="token-fn">createConnection</span>({
+      name: <span class="token-str">"Test"</span>,
+      host: <span class="token-str">"localhost"</span>,
+      port: <span class="token-num">27017</span>
+    });
+    <span class="token-kw">const</span> conn = store.<span class="token-fn">getConnection</span>(id);
+    <span class="token-fn">expect</span>(conn.name).<span class="token-fn">toBe</span>(<span class="token-str">"Test"</span>);
+  });
+});</code></pre>
+
+      <h3>Integration tests</h3>
+      <p>Tests in <code>tests/mongo-client.test.ts</code> run against a real MongoDB server. They are automatically skipped if MongoDB is not available at <code>localhost:27017</code>. To run them:</p>
+      <pre><code><span class="token-cm"># Start MongoDB locally, then:</span>
+bun test tests/mongo-client.test.ts</code></pre>
+
+    </main>

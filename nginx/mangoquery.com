@@ -32,8 +32,24 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    location / {
-        try_files $uri $uri/ /index.html;
+    # Root URL - serve the language detector page
+    location = / {
+        try_files /index.html =404;
+    }
+
+    # Language-prefixed pages (clean URLs)
+    location ~ ^/(en|es|fr|pt|de|nl|zh|ja|ko|ar|he)(/.*)?$ {
+        try_files $uri $uri/ $uri/index.html =404;
+    }
+
+    # Backward compat: redirect old /docs.html to /en/docs
+    location = /docs.html {
+        return 301 /en/docs;
+    }
+
+    # Backward compat: redirect bare /docs to /en/docs
+    location = /docs {
+        return 301 /en/docs;
     }
 
     # Cache static assets

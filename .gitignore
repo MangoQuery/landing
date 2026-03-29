@@ -1,1 +1,3 @@
 deploy.sh
+dist/
+__pycache__/
