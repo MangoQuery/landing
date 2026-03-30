@@ -38,9 +38,7 @@ STATIC_ASSETS = [
     "icon-512.png",
 ]
 
-STATIC_DIRS = [
-    "downloads",
-]
+STATIC_DIRS = []
 
 
 def load_translation(lang_code: str) -> dict:

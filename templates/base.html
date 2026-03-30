@@ -230,7 +230,7 @@
           {% endfor %}
         </div>
       </div>
-      <a href="/downloads/Mango.dmg" class="btn btn-primary" download>{{ t.nav_download }}</a>
+      <a href="https://github.com/MangoQuery/app/releases/latest" class="btn btn-primary" id="navDownloadBtn" target="_blank" rel="noopener">{{ t.nav_download }}</a>
     </div>
   </nav>
 
@@ -270,6 +270,81 @@
       localStorage.setItem('cookie_consent', 'declined');
       document.getElementById('cookieBanner').style.display = 'none';
     }
+
+    // OS detection and GitHub release link updater
+    (function() {
+      var REPO = 'MangoQuery/app';
+      var APPSTORE_IOS = 'https://apps.apple.com/us/app/mango-mongodb-browser/id6760540159';
+      var PLAYSTORE = 'https://play.google.com/store/apps/details?id=com.skelpo.mango';
+      var RELEASES_URL = 'https://github.com/' + REPO + '/releases/latest';
+
+      function detectOS() {
+        var ua = navigator.userAgent;
+        if (/iPhone|iPad|iPod/.test(ua)) return 'ios';
+        if (/Android/.test(ua)) return 'android';
+        if (/Mac/.test(navigator.platform || '')) return 'macos';
+        if (/Win/.test(navigator.platform || '')) return 'windows';
+        if (/Linux/.test(navigator.platform || '')) return 'linux';
+        return 'unknown';
+      }
+
+      function setNavButton(os, assets) {
+        var btn = document.getElementById('navDownloadBtn');
+        if (!btn) return;
+        if (os === 'ios') {
+          btn.href = APPSTORE_IOS;
+        } else if (os === 'android') {
+          btn.href = PLAYSTORE;
+        } else if (assets) {
+          var ext = os === 'macos' ? '.dmg' : os === 'windows' ? '.exe' : '.tar.gz';
+          for (var i = 0; i < assets.length; i++) {
+            if (assets[i].name.endsWith(ext)) {
+              btn.href = assets[i].browser_download_url;
+              btn.removeAttribute('target');
+              break;
+            }
+          }
+        }
+      }
+
+      function updateDownloadLinks(assets) {
+        var map = { 'heroDownloadMac': '.dmg', 'heroDownloadWin': '.exe', 'platformLinux': '.tar.gz', 'platformWindows': '.exe' };
+        for (var id in map) {
+          var el = document.getElementById(id);
+          if (!el) continue;
+          for (var i = 0; i < assets.length; i++) {
+            if (assets[i].name.endsWith(map[id])) {
+              el.href = assets[i].browser_download_url;
+              el.removeAttribute('target');
+              break;
+            }
+          }
+        }
+      }
+
+      var os = detectOS();
+      var cached = sessionStorage.getItem('gh_release_' + REPO);
+      if (cached) {
+        try {
+          var assets = JSON.parse(cached);
+          setNavButton(os, assets);
+          updateDownloadLinks(assets);
+        } catch(e) {}
+      } else {
+        setNavButton(os, null);
+      }
+
+      fetch('https://api.github.com/repos/' + REPO + '/releases/latest')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.assets) {
+            sessionStorage.setItem('gh_release_' + REPO, JSON.stringify(data.assets));
+            setNavButton(os, data.assets);
+            updateDownloadLinks(data.assets);
+          }
+        })
+        .catch(function() {});
+    })();
 
     function loadAnalytics() {
       var s = document.createElement('script');

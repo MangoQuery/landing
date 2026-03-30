@@ -58,9 +58,4 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
-    # Serve exe as download
-    location /downloads/ {
-        add_header Content-Disposition "attachment";
-        add_header Cache-Control "public, max-age=3600";
-    }
 }
