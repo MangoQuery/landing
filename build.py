@@ -36,6 +36,8 @@ STATIC_ASSETS = [
     "logo-dark.svg",
     "favicon.png",
     "icon-512.png",
+    "screenshot-explorer.png",
+    "screenshot-editor.png",
 ]
 
 STATIC_DIRS = []

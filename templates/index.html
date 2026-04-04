@@ -266,9 +266,30 @@
       color: var(--charcoal);
     }
 
+    /* --- SCREENSHOTS --- */
+    .hero-screenshots {
+      margin-top: 4rem;
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-screenshots img {
+      width: 50%;
+      max-width: 520px;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+      border: 1px solid var(--border);
+    }
+
     @media (max-width: 640px) {
       .hero { padding: 8rem 1.5rem 4rem; }
       .hero-stats { gap: 2rem; }
+      .hero-screenshots { flex-direction: column; align-items: center; gap: 1rem; }
+      .hero-screenshots img { width: 100%; max-width: 400px; }
       .features, .platforms, .cta { padding: 4rem 1.5rem; }
     }
 {% endblock %}
@@ -317,6 +338,10 @@
         <div class="stat-value">{{ t.hero_stat_electron_value }}</div>
         <div class="stat-label">{{ t.hero_stat_electron_label }}</div>
       </div>
+    </div>
+    <div class="hero-screenshots">
+      <img src="/screenshot-explorer.png" alt="Mango Explorer — browse databases, collections, and documents" loading="eager">
+      <img src="/screenshot-editor.png" alt="Mango Editor — edit documents with syntax-highlighted JSON" loading="eager">
     </div>
   </section>
 
